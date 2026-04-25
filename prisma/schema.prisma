@@ -1,0 +1,178 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Owner {
+  RYAN
+  PHIL
+  BOTH
+}
+
+enum ContactType {
+  CUSTOMER
+  WHOLESALE_LEAD
+  GYM_STORE_BUYER
+  INFLUENCER_CREATOR
+  SUPPLIER_MANUFACTURER
+  VENDOR
+}
+
+enum PipelineStatus {
+  NEW_LEAD
+  CONTACTED
+  INTERESTED
+  SAMPLE_SENT
+  FOLLOW_UP_NEEDED
+  NEGOTIATING
+  WON
+  LOST
+}
+
+enum InteractionType {
+  CALLED
+  EMAILED
+  DMD
+  SENT_SAMPLE
+  SENT_PRICING
+  FOLLOWED_UP
+  CLOSED_DEAL
+  CUSTOM_NOTE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskRecurring {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum TaskCategory {
+  SALES
+  INVENTORY
+  AMAZON
+  SHOPIFY
+  WHOLESALE
+  MARKETING
+  OPS
+}
+
+enum NoteCategory {
+  MARKETING
+  INVENTORY
+  PRODUCT_IDEAS
+  SUPPLIER
+  WHOLESALE
+  AMAZON
+  SHOPIFY
+  RANDOM_IDEAS
+}
+
+model Contact {
+  id                String          @id @default(cuid())
+  name              String
+  company           String?
+  email             String?
+  phone             String?
+  socialHandle      String?
+  location          String?
+  type              ContactType
+  owner             Owner
+  status            PipelineStatus
+  tags              String[]        @default([])
+  notes             String?
+  lastContactedAt   DateTime?
+  nextFollowUpAt    DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deal              Deal?
+  interactions      Interaction[]
+  tasks             Objective[]
+
+  @@index([type])
+  @@index([owner])
+  @@index([status])
+  @@index([nextFollowUpAt])
+}
+
+model Deal {
+  id                        String    @id @default(cuid())
+  contactId                 String    @unique
+  contact                   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  potentialMonthlyOrderSize Int?
+  caseQuantity              Int?
+  expectedRevenue           Decimal?  @db.Decimal(12, 2)
+  probability               Int       @default(25)
+  estimatedCloseDate        DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+}
+
+model Interaction {
+  id         String          @id @default(cuid())
+  contactId  String?
+  contact    Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  type       InteractionType
+  summary    String
+  owner      Owner           @default(BOTH)
+  occurredAt DateTime        @default(now())
+  createdAt  DateTime        @default(now())
+
+  @@index([contactId])
+  @@index([occurredAt])
+}
+
+model Objective {
+  id          String        @id @default(cuid())
+  contactId   String?
+  contact     Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  title       String
+  description String?
+  owner       Owner
+  priority    TaskPriority
+  status      TaskStatus
+  dueDate     DateTime?
+  recurring   TaskRecurring @default(NONE)
+  category    TaskCategory
+  completedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([owner])
+  @@index([status])
+  @@index([dueDate])
+  @@index([category])
+  @@index([contactId])
+}
+
+model Note {
+  id        String       @id @default(cuid())
+  title     String
+  body      String
+  category  NoteCategory
+  tags      String[]     @default([])
+  owner     Owner
+  pinned    Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([category])
+  @@index([owner])
+  @@index([pinned])
+}
